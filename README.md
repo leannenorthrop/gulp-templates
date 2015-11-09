@@ -1,8 +1,9 @@
 # gulp-templates
-Simple templates for simple web sites.
+Simple templates for simple web sites. Several templates are available each in own branch.
 
 ## Installation
 
 * Download template from appropriate branch or clone repository
-* `npm install`
 * If you don't have gulp then `npm install --global gulp`
+* `npm install`
+
