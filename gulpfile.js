@@ -11,6 +11,7 @@ var gulp = require('gulp'),
     runSequence = require('run-sequence'),
     stylish = require('jshint-stylish-ex'),
     merge = require('merge-stream'),
+    qunit = require('gulp-qunit'),
     plugins = require('gulp-load-plugins')();
 
 var isProduction = true;
@@ -47,7 +48,7 @@ var paths = {
     },
     html: {
       src: basePaths.src,
-      dest: basePaths
+      dest: basePaths.dest
     } 
 };
 
@@ -124,6 +125,14 @@ function deleteFileIfExists(file) {
 gulp.task('scripts:clean', function() {
   var file = paths.scripts.src+'/all.js';
   return deleteFileIfExists(file);
+});
+
+// sudo npm -g install phantomjs2
+// see comment 1/2 way down https://github.com/Homebrew/homebrew/issues/44535
+// npm install qunit-phantomjs-runner
+gulp.task('scripts:test', function(done) {
+  return gulp.src(paths.scripts.src+'/qunit/test-runner.html')
+        .pipe(plugins.qunit());   
 });
 
 // Work around for bug in uglify which causes sourcemaps to incorrectly output sourcemap comment
@@ -308,5 +317,5 @@ gulp.task('serve', function() {
 });
 
 gulp.task('default', function() { 
-    gulp.start('sprite', 'styles', 'scripts', 'fonts', 'images', 'html');    
+    gulp.start('sprite', 'styles', 'scripts:test', 'scripts', 'fonts', 'images', 'html');    
 });
