@@ -64,6 +64,33 @@ gulp.task('init', function() {
   }
 });
 
+gulp.task('scripts:bower', function() {
+  return gulp.src(['./bower_components/**/dist/**/*.js','./bower_components/**/dist/**/*.min.map'])
+            .pipe(plugins.rename(function (path) {
+              path.dirname = "";
+            }))
+            .pipe(gulp.dest(paths.scripts.src+'/libs/'))
+});
+
+gulp.task('styles:bower', function() {
+  return gulp.src(['./bower_components/**/dist/**/*.css','./bower_components/**/dist/*.css.map'])
+            .pipe(plugins.rename(function (path) {
+              path.dirname = "";
+            }))
+            .pipe(gulp.dest(paths.styles.src+'/libs/'))
+});
+
+gulp.task('fonts:bower', function() {
+  return gulp.src(['./bower_components/**/dist/**/fonts/*.*'])
+            .pipe(plugins.rename(function (path) {
+              path.dirname = "";
+            }))
+            .pipe(gulp.dest(paths.fonts.src+'/'))
+});
+
+gulp.task('bower:copy', ['scripts:bower', 'styles:bower', 'fonts:bower'], function() {
+});
+
 gulp.task('styles:copy', function() {
   var stream = gulp.src([paths.styles.src + '/libs/**/*.*'])
     .pipe(gulp.dest(paths.styles.dest+'/libs'));
@@ -309,4 +336,12 @@ gulp.task('serve', function() {
 
 gulp.task('default', function() { 
     gulp.start('sprite', 'styles', 'scripts', 'fonts', 'images', 'html');    
+});
+
+gulp.task('help', function() {
+  gutil.log(gutil.colors.blue('Setup:'));
+  gutil.log(gutil.colors.blue('  For bower install run: npm install bower -g. For a new bower project run: bower init. To install depenendencies: bower install xxx --save'));
+  gutil.log(gutil.colors.blue(''));
+  gutil.log(gutil.colors.blue('Bower:'));
+  gutil.log(gutil.colors.blue('  gulp bower:copy - copies files from dist folders in bower_components to appropriate libs directories. Ensure they are added to .gitignore as appropriate.'));  
 });
