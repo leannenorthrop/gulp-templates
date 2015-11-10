@@ -1,3 +1,5 @@
+var fs = require('fs');
+
 var gulp = require('gulp'),
     watch = require('gulp-watch'),
     autoprefixer = require('gulp-autoprefixer'),
@@ -19,6 +21,8 @@ var gulp = require('gulp'),
     csswring = require('csswring'),
     uglify = require('gulp-uglify'),
     vinylPaths = require('vinyl-paths'),
+    gutil = require('gulp-util'),
+    runSequence = require('run-sequence'),
     srcDir = "src",
     destDir = "./dist";
 
@@ -42,21 +46,34 @@ gulp.task('styles', function() {
 });
 
 gulp.task('scripts:clean', function() {
-    return del([srcDir+'/js/all.js']);
+  try {
+    var file = srcDir+'/js/all.js';
+    var f = fs.statSync(file);  
+    if (f.isFile()) {
+      return del([file]);  
+    } else {
+      return gulp.noop();
+    }
+  }
+  catch(err) {
+    gutil.log(gutil.colors.red('Warning: ' + err));
+  }
 });
 
+// Work around for bug in uglify which causes sourcemaps to incorrectly output sourcemap comment
 gulp.task('scripts:concat', function() {
-    var stream = gulp.src([srcDir+'/js/**/*.js','!'+ srcDir+'/all.js'])
+    var stream = gulp.src(['!'+ srcDir + '/js/libs/**/*.*', '!'+ srcDir+'/all.js', srcDir+'/js/**/*.js'])
     .pipe(jshint('.jshintrc'))
-    .pipe(jshint.reporter('default'))
+    .pipe(jshint.reporter('jshint-stylish'))
     .pipe(gulp.dest(destDir+'/js'))
     .pipe(concat('all.js'))
-    .pipe(gulp.dest(srcDir+'/js'));
+    .pipe(gulp.dest(srcDir+'/js'))
+    .pipe(gulp.dest(destDir+'/js'));
     return stream;
 });
 
 gulp.task('scripts:min', function() {
-  var stream = gulp.src([srcDir+'/js/**/*.js'])
+  var stream = gulp.src(['!'+ srcDir + '/js/libs/**/*.*', srcDir+'/js/**/*.js'])
     .pipe(sourcemaps.init({loadMaps: true}))    
     .pipe(uglify())
     .pipe(rename({suffix: '.min'}))
@@ -65,8 +82,16 @@ gulp.task('scripts:min', function() {
     return stream;
 });
 
+gulp.task('scripts:copy', function() {
+  var stream = gulp.src([srcDir + '/js/libs/**/*.*'])
+    .pipe(sourcemaps.init({loadMaps: true}))
+    .pipe(gulp.dest(destDir+'/js/libs'));
+    return stream;
+});
 
-gulp.task('scripts', ['scripts:concat', 'scripts:min', 'scripts:clean']);
+gulp.task('scripts', function(cb){
+  runSequence('scripts:clean', 'scripts:concat', 'scripts:min', 'scripts:copy', 'scripts:clean', cb)  
+});
 
 gulp.task('fonts', function() {
   return gulp.src([srcDir+'/fonts/**/*.*'])
@@ -120,11 +145,11 @@ gulp.task('watch', function() {
   gulp.watch(destDir+'/images/**/*', ['change', browserSync.reload]); 
 });
 
-gulp.task('clean', function() {
+gulp.task('clean', ['scripts:clean'], function() {
     del([srcDir+'/js/all.js']);
     return del([destDir+'/css', destDir+'/js', destDir+'/images', destDir+'/fonts', destDir+"/**/*.html"]);
 });
 
-gulp.task('default', function() {
-    gulp.start('styles', 'scripts', 'fonts', 'images', 'html', 'browser-sync', 'watch');
+gulp.task('default', function() { 
+    gulp.start('styles', 'scripts', 'fonts', 'images', 'html', 'browser-sync');    
 });
