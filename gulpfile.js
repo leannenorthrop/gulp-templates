@@ -11,6 +11,7 @@ var gulp = require('gulp'),
     runSequence = require('run-sequence'),
     stylish = require('jshint-stylish-ex'),
     merge = require('merge-stream'),
+    qunit = require('gulp-qunit'),
     plugins = require('gulp-load-plugins')();
 
 var isProduction = true;
@@ -222,6 +223,11 @@ gulp.task('scripts:copy', function() {
     return stream;
 });
 
+gulp.task('scripts:test', function(done) {
+  return gulp.src(paths.scripts.src+'/qunit/test-runner.html')
+        .pipe(plugins.qunit());   
+});
+
 gulp.task('scripts', function(cb){
   runSequence('scripts:clean', 'scripts:concat', 'scripts:min', 'scripts:copy', 'scripts:clean', cb)  
 });
@@ -335,12 +341,16 @@ gulp.task('serve', function() {
 });
 
 gulp.task('default', function() { 
-    gulp.start('bower:copy', 'sprite', 'styles', 'scripts', 'fonts', 'images', 'html');    
+    gulp.start('bower:copy', 'sprite', 'styles', 'scripts:test', 'scripts', 'fonts', 'images', 'html');    
 });
 
 gulp.task('help', function() {
   gutil.log(gutil.colors.blue('Setup:'));
   gutil.log(gutil.colors.blue('  For bower install run: npm install bower -g. For a new bower project run: bower init. To install depenendencies: bower install xxx --save'));
+  gutil.log(gutil.colors.blue('  For qunit/phantomjs2 install run: sudo npm -g install phantomjs2 after reading see comment 1/2 way down https://github.com/Homebrew/homebrew/issues/44535.'));
+  gutil.log(gutil.colors.blue('  For qunit install: npm install qunit-phantomjs-runner'))
+  gutil.log(gutil.colors.blue('  npm install'));
+  
   gutil.log(gutil.colors.blue(''));
   gutil.log(gutil.colors.blue('Bower:'));
   gutil.log(gutil.colors.blue('  gulp bower:copy - copies files from dist folders in bower_components to appropriate libs directories. Ensure they are added to .gitignore as appropriate.'));  
