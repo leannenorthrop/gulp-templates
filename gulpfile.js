@@ -47,7 +47,7 @@ var paths = {
     },
     html: {
       src: basePaths.src,
-      dest: basePaths
+      dest: basePaths.dest
     } 
 };
 
