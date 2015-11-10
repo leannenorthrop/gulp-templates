@@ -47,7 +47,7 @@ var paths = {
     },
     html: {
       src: basePaths.src,
-      dest: basePaths
+      dest: basePaths.dest
     } 
 };
 
@@ -69,7 +69,7 @@ gulp.task('scripts:bower', function() {
             .pipe(plugins.rename(function (path) {
               path.dirname = "";
             }))
-            .pipe(gulp.dest(paths.scripts.src+'/libs/'))
+            .pipe(gulp.dest(paths.scripts.dest+'/libs/'))
 });
 
 gulp.task('styles:bower', function() {
@@ -77,7 +77,7 @@ gulp.task('styles:bower', function() {
             .pipe(plugins.rename(function (path) {
               path.dirname = "";
             }))
-            .pipe(gulp.dest(paths.styles.src+'/libs/'))
+            .pipe(gulp.dest(paths.styles.dest))
 });
 
 gulp.task('fonts:bower', function() {
@@ -85,7 +85,7 @@ gulp.task('fonts:bower', function() {
             .pipe(plugins.rename(function (path) {
               path.dirname = "";
             }))
-            .pipe(gulp.dest(paths.fonts.src+'/'))
+            .pipe(gulp.dest(paths.fonts.dest+'/'))
 });
 
 gulp.task('bower:copy', ['scripts:bower', 'styles:bower', 'fonts:bower'], function() {
@@ -331,11 +331,11 @@ gulp.task('clean', ['scripts:clean'], function() {
 });
 
 gulp.task('serve', function() { 
-    gulp.start('init', 'sprite', 'styles', 'scripts', 'fonts', 'images', 'html', 'browser-sync', 'watch');    
+    gulp.start('init', 'bower:copy', 'sprite', 'styles', 'scripts', 'fonts', 'images', 'html', 'browser-sync', 'watch');    
 });
 
 gulp.task('default', function() { 
-    gulp.start('sprite', 'styles', 'scripts', 'fonts', 'images', 'html');    
+    gulp.start('bower:copy', 'sprite', 'styles', 'scripts', 'fonts', 'images', 'html');    
 });
 
 gulp.task('help', function() {
