@@ -17,6 +17,8 @@ var gulp = require('gulp'),
     sourcemaps = require('gulp-sourcemaps'),
     concat = require('gulp-concat'),
     csswring = require('csswring'),
+    uglify = require('gulp-uglify'),
+    vinylPaths = require('vinyl-paths'),
     srcDir = "src",
     destDir = "./dist";
 
@@ -39,15 +41,32 @@ gulp.task('styles', function() {
 
 });
 
-gulp.task('scripts', function() {
-  return gulp.src([srcDir+'/js/**/*.js'])
-    .pipe(gulp.dest(destDir+'/js'))
-    .pipe(sourcemaps.init({loadMaps: true}))
-    .pipe(rename({suffix: '.min'}))
-    .pipe(concat('all.js'))
-    .pipe(sourcemaps.write('./',{includeContent: true, sourceRoot: '../js'}))
-    .pipe(gulp.dest(destDir+'/js'));
+gulp.task('scripts:clean', function() {
+    return del([srcDir+'/js/all.js']);
 });
+
+gulp.task('scripts:concat', function() {
+    var stream = gulp.src([srcDir+'/js/**/*.js','!'+ srcDir+'/all.js'])
+    .pipe(jshint('.jshintrc'))
+    .pipe(jshint.reporter('default'))
+    .pipe(gulp.dest(destDir+'/js'))
+    .pipe(concat('all.js'))
+    .pipe(gulp.dest(srcDir+'/js'));
+    return stream;
+});
+
+gulp.task('scripts:min', function() {
+  var stream = gulp.src([srcDir+'/js/**/*.js'])
+    .pipe(sourcemaps.init({loadMaps: true}))    
+    .pipe(uglify())
+    .pipe(rename({suffix: '.min'}))
+    .pipe(sourcemaps.write('./',{includeContent: false, sourceRoot: '../js'}))
+    .pipe(gulp.dest(destDir+'/js'));
+    return stream;
+});
+
+
+gulp.task('scripts', ['scripts:concat', 'scripts:min', 'scripts:clean']);
 
 gulp.task('fonts', function() {
   return gulp.src([srcDir+'/fonts/**/*.*'])
@@ -99,6 +118,11 @@ gulp.task('watch', function() {
   // Watch image files
   gulp.watch(srcDir+'/images/**/*', ['images', browserSync.reload]); 
   gulp.watch(destDir+'/images/**/*', ['change', browserSync.reload]); 
+});
+
+gulp.task('clean', function() {
+    del([srcDir+'/js/all.js']);
+    return del([destDir+'/css', destDir+'/js', destDir+'/images', destDir+'/fonts', destDir+"/**/*.html"]);
 });
 
 gulp.task('default', function() {
