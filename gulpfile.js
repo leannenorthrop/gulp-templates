@@ -24,9 +24,15 @@ var gulp = require('gulp'),
     gutil = require('gulp-util'),
     runSequence = require('run-sequence'),
     stylish = require('jshint-stylish-ex'),
+    csslint = require('gulp-csslint'),
+    gulpif = require('gulp-if'),
+    failOnError = true;
     srcDir = "src",
     destDir = "./dist";
 
+gulp.task('init', function() {
+  failOnError = false;
+});
 
 gulp.task('styles', function() {
   var processors = [
@@ -36,7 +42,25 @@ gulp.task('styles', function() {
           removeAllComments: true
         })
     ];
+  function getMessages(file) {
+    if (file.csslint.success) {
+      // Don't show something if success
+      return false;
+    }
+
+    var errors = file.csslint.results.map(function (data) {
+      if (data.error) {
+        return "(Line " + data.error.line + ') ' + data.error.message;
+      }
+    }).join("\n");
+    return (file.relative + " (" + file.csslint.errorCount + " errors)\n" + errors);
+  }
+
   gulp.src([srcDir+'/css/**/*.css'])
+    .pipe(csslint())
+    .pipe(csslint.reporter())
+    .pipe(gulpif(failOnError, csslint.reporter('fail')))
+    .pipe(notify(getMessages))    
     .pipe(gulp.dest(destDir+'/css'))
     .pipe(sourcemaps.init({loadMaps: true}))
     .pipe(rename({suffix: '.min'}))
@@ -63,10 +87,7 @@ gulp.task('scripts:clean', function() {
 
 // Work around for bug in uglify which causes sourcemaps to incorrectly output sourcemap comment
 gulp.task('scripts:concat', function() {
-    var stream = gulp.src(['!'+ srcDir + '/js/libs/**/*.*', '!'+ srcDir+'/all.js', srcDir+'/js/**/*.js'])
-    .pipe(jshint('.jshintrc'))
-    .pipe(jshint.reporter(stylish))  
-    .pipe(notify(function (file) {
+    function getMessage(file) {
       if (file.jshint.success) {
         // Don't show something if success
         return false;
@@ -77,8 +98,14 @@ gulp.task('scripts:concat', function() {
           return "(" + data.error.line + ':' + data.error.character + ') ' + data.error.reason;
         }
       }).join("\n");
-      return file.relative + " (" + file.jshint.results.length + " errors)\n" + errors;
-    }))
+      return (file.relative + " (" + file.jshint.results.length + " errors)\n" + errors);
+    }
+
+    var stream = gulp.src(['!'+ srcDir + '/js/libs/**/*.*', '!'+ srcDir+'/all.js', srcDir+'/js/**/*.js'])
+    .pipe(jshint('.jshintrc'))
+    .pipe(jshint.reporter(stylish))  
+    .pipe(notify(getMessage))
+    .pipe(gulpif(failOnError, jshint.reporter('fail')))
     .pipe(gulp.dest(destDir+'/js'))
     .pipe(concat('all.js'))
     .pipe(gulp.dest(srcDir+'/js'))
@@ -91,10 +118,12 @@ gulp.task('scripts:concat', function() {
 
 gulp.task('scripts:min', function() {
   var stream = gulp.src(['!'+ srcDir + '/js/libs/**/*.*', srcDir+'/js/**/*.js'])
+    .pipe(plumber({errorHandler:failOnError}))
     .pipe(sourcemaps.init({loadMaps: true}))    
-    .pipe(uglify())
+    .pipe(uglify().on('error', gutil.log))
     .pipe(rename({suffix: '.min'}))
     .pipe(sourcemaps.write('./',{includeContent: false, sourceRoot: '../js'}))
+    .pipe(plumber.stop())
     .pipe(gulp.dest(destDir+'/js'));
     return stream;
 });
@@ -174,6 +203,10 @@ gulp.task('clean', ['scripts:clean'], function() {
     return del([destDir+'/css', destDir+'/js', destDir+'/images', destDir+'/fonts', destDir+"/**/*.html"]);
 });
 
+gulp.task('serve', function() { 
+    gulp.start('init', 'styles', 'scripts', 'fonts', 'images', 'html', 'browser-sync', 'watch');    
+});
+
 gulp.task('default', function() { 
-    gulp.start('styles', 'scripts', 'fonts', 'images', 'html', 'browser-sync', 'watch');    
+    gulp.start('styles', 'scripts', 'fonts', 'images', 'html');    
 });
