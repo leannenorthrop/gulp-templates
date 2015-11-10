@@ -9,11 +9,11 @@ var gulp = require('gulp'),
     vinylPaths = require('vinyl-paths'),
     browserSync = require('browser-sync'),
     runSequence = require('run-sequence'),
-    stylish = require('jshint-stylish-ex');
+    stylish = require('jshint-stylish-ex'),
+    merge = require('merge-stream'),
+    plugins = require('gulp-load-plugins')();
 
-var plugins = require('gulp-load-plugins')();
-
-var failOnError = true;
+var isProduction = true;
 
 var basePaths = {
     src: 'src',
@@ -51,15 +51,26 @@ var paths = {
     } 
 };
 
+var spriteConfig = {
+    imgName: 'sprite.png',
+    cssName: 'sprite.css',
+    imgPath: paths.images.src + '/sprite.png' // Gets put in the css
+};
 
 gulp.task('init', function() {
-  var isDev = false;
+  var isDev = true;
   if (isDev) {    
-    failOnError = false;
+    isProduction = false;
   }
 });
 
-gulp.task('styles', function() {
+gulp.task('styles:copy', function() {
+  var stream = gulp.src([paths.styles.src + '/libs/**/*.*'])
+    .pipe(gulp.dest(paths.styles.dest+'/libs'));
+    return stream;
+});
+
+gulp.task('styles', ['styles:copy'], function() {
   var processors = [
         plugins.autoprefixer({browsers: ['last 2 version', 'safari 5', 'ie 8', 'ie 9', 'opera 12.1', 'ios 6', 'android 4']}),
         csswring({
@@ -81,10 +92,10 @@ gulp.task('styles', function() {
     return (file.relative + " (" + file.csslint.errorCount + " errors)\n" + errors);
   }
 
-  gulp.src([paths.styles.src+'/**/*.css'])
+  gulp.src(['!'+ paths.styles.src + '/libs/**/*.*', paths.styles.src+'/**/*.css'])
     .pipe(plugins.csslint())
     .pipe(plugins.csslint.reporter())
-    .pipe(plugins.if(failOnError, plugins.csslint.reporter('fail')))
+    .pipe(plugins.if(isProduction, plugins.csslint.reporter('fail')))
     .pipe(plugins.notify(getMessages))    
     .pipe(gulp.dest(paths.styles.dest))
     .pipe(plugins.sourcemaps.init({loadMaps: true}))
@@ -96,9 +107,8 @@ gulp.task('styles', function() {
 
 });
 
-gulp.task('scripts:clean', function() {
+function deleteFileIfExists(file) {
   try {
-    var file = paths.scripts.src+'/all.js';
     var f = fs.statSync(file);  
     if (f.isFile()) {
       return del([file]);  
@@ -108,7 +118,12 @@ gulp.task('scripts:clean', function() {
   }
   catch(err) {
     gutil.log(gutil.colors.red('Warning: ' + err));
-  }
+  }  
+}
+
+gulp.task('scripts:clean', function() {
+  var file = paths.scripts.src+'/all.js';
+  return deleteFileIfExists(file);
 });
 
 // Work around for bug in uglify which causes sourcemaps to incorrectly output sourcemap comment
@@ -147,8 +162,8 @@ gulp.task('scripts:concat', function() {
                       .pipe(plugins.notify(getMessage))           // Notifier
                       .pipe(plugins.jshint.reporter(stylish))     // Report lint errors to console
                       .pipe(plugins.jscs.reporter())              // Report style check errors to console
-                      .pipe(plugins.if(failOnError, plugins.jscs.reporter('fail')))   // Fail if required on style errors
-                      .pipe(plugins.if(failOnError, plugins.jshint.reporter('fail'))) // Fail if required on lint errors
+                      .pipe(plugins.if(isProduction, plugins.jscs.reporter('fail')))   // Fail if required on style errors
+                      .pipe(plugins.if(isProduction, plugins.jshint.reporter('fail'))) // Fail if required on lint errors
                       .pipe(gulp.dest(paths.scripts.dest))             // Copy files to dest
                       .pipe(plugins.concat('all.js'))             // Concat all JS into All
                       .pipe(gulp.dest(paths.scripts.src))              // Write all to both dest and src (for min task)
@@ -162,7 +177,7 @@ gulp.task('scripts:concat', function() {
 
 gulp.task('scripts:min', function() {
   var stream = gulp.src(['!'+ paths.scripts.src + '/libs/**/*.*', paths.scripts.src+'/**/*.js'])
-    .pipe(plugins.plumber({errorHandler:failOnError}))
+    .pipe(plugins.plumber({errorHandler:isProduction}))
     .pipe(plugins.sourcemaps.init({loadMaps: true}))    
     .pipe(plugins.uglify().on('error', gutil.log))
     .pipe(plugins.rename({suffix: '.min'}))
@@ -201,6 +216,26 @@ gulp.task('images', function () {
     }))
     .pipe(gulp.dest(paths.images.dest))
     .pipe(plugins.size({title: 'images'}));
+});
+
+gulp.task('sprite:clean', function() {
+  deleteFileIfExists(paths.images.src+'/sprite.png');
+  deleteFileIfExists(paths.styles.src+'/libs/sprite.css');
+});
+
+// Creates sprites. Thanks to http://www.mikestreety.co.uk/blog/an-advanced-gulpjs-file
+gulp.task('sprite', ['sprite:clean'], function () {
+    var spriteData = gulp.src(paths.sprite.src).pipe(plugins.spritesmith({
+        imgName: spriteConfig.imgName,
+        cssName: spriteConfig.cssName,
+        imgPath: spriteConfig.imgPath
+        //cssVarMap: function (sprite) {
+        //    sprite.name = 'sprite-' + sprite.name;
+        //}
+    }));
+    var imgStream = spriteData.img.pipe(gulp.dest(paths.images.src));
+    var cssStream = spriteData.css.pipe(gulp.dest(paths.styles.src+"/libs"));
+    return merge(imgStream, cssStream);
 });
 
 gulp.task('html', function() {
@@ -269,9 +304,9 @@ gulp.task('clean', ['scripts:clean'], function() {
 });
 
 gulp.task('serve', function() { 
-    gulp.start('init', 'styles', 'scripts', 'fonts', 'images', 'html', 'browser-sync', 'watch');    
+    gulp.start('init', 'sprite', 'styles', 'scripts', 'fonts', 'images', 'html', 'browser-sync', 'watch');    
 });
 
 gulp.task('default', function() { 
-    gulp.start('styles', 'scripts', 'fonts', 'images', 'html');    
+    gulp.start('sprite', 'styles', 'scripts', 'fonts', 'images', 'html');    
 });
