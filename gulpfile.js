@@ -23,6 +23,7 @@ var gulp = require('gulp'),
     vinylPaths = require('vinyl-paths'),
     gutil = require('gulp-util'),
     runSequence = require('run-sequence'),
+    stylish = require('jshint-stylish-ex'),
     srcDir = "src",
     destDir = "./dist";
 
@@ -64,11 +65,27 @@ gulp.task('scripts:clean', function() {
 gulp.task('scripts:concat', function() {
     var stream = gulp.src(['!'+ srcDir + '/js/libs/**/*.*', '!'+ srcDir+'/all.js', srcDir+'/js/**/*.js'])
     .pipe(jshint('.jshintrc'))
-    .pipe(jshint.reporter('jshint-stylish'))
+    .pipe(jshint.reporter(stylish))  
+    .pipe(notify(function (file) {
+      if (file.jshint.success) {
+        // Don't show something if success
+        return false;
+      }
+
+      var errors = file.jshint.results.map(function (data) {
+        if (data.error) {
+          return "(" + data.error.line + ':' + data.error.character + ') ' + data.error.reason;
+        }
+      }).join("\n");
+      return file.relative + " (" + file.jshint.results.length + " errors)\n" + errors;
+    }))
     .pipe(gulp.dest(destDir+'/js'))
     .pipe(concat('all.js'))
     .pipe(gulp.dest(srcDir+'/js'))
-    .pipe(gulp.dest(destDir+'/js'));
+    .pipe(gulp.dest(destDir+'/js'))
+    .on('error', notify.onError(function (error) {
+      return error.message;
+    }));
     return stream;
 });
 
@@ -133,13 +150,20 @@ gulp.task('deploy', function() {
 });
 
 gulp.task('watch', function() {
+  function swallowError (error) {
+
+    // If you want details of the error in the console
+    console.log(gutil.colors.red(error.toString()));
+
+    this.emit('end');
+  }  
   // Watch .html files
   gulp.watch(srcDir+'/**/*.html', ['html', browserSync.reload]);
   gulp.watch(destDir+"/*.html").on('change', browserSync.reload);
   // Watch .css files
-  gulp.watch(srcDir+'/css/**/*.css', ['styles', browserSync.reload]);
+  gulp.watch(srcDir+'/css/**/*.css', ['styles', browserSync.reload]).on('error', swallowError);
   // Watch .js files
-  gulp.watch(srcDir+'/js/**/*.js', ['scripts', browserSync.reload]);
+  gulp.watch(srcDir+'/js/**/*.js', ['scripts', browserSync.reload]).on('error', swallowError);
   // Watch image files
   gulp.watch(srcDir+'/images/**/*', ['images', browserSync.reload]); 
   gulp.watch(destDir+'/images/**/*', ['change', browserSync.reload]); 
@@ -151,5 +175,5 @@ gulp.task('clean', ['scripts:clean'], function() {
 });
 
 gulp.task('default', function() { 
-    gulp.start('styles', 'scripts', 'fonts', 'images', 'html', 'browser-sync');    
+    gulp.start('styles', 'scripts', 'fonts', 'images', 'html', 'browser-sync', 'watch');    
 });
