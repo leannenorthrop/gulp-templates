@@ -53,7 +53,10 @@ var paths = {
 
 
 gulp.task('init', function() {
-  failOnError = false;
+  var isDev = false;
+  if (isDev) {    
+    failOnError = false;
+  }
 });
 
 gulp.task('styles', function() {
@@ -88,7 +91,8 @@ gulp.task('styles', function() {
     .pipe(plugins.rename({suffix: '.min'}))
     .pipe(plugins.postcss([csswring]))
     .pipe(plugins.sourcemaps.write('./', {includeContent: false, sourceRoot: '../css'}))
-    .pipe(gulp.dest(paths.styles.dest));
+    .pipe(gulp.dest(paths.styles.dest))
+    .pipe(plugins.size({title: 'styles', showFiles:true}));
 
 });
 
@@ -149,6 +153,7 @@ gulp.task('scripts:concat', function() {
                       .pipe(plugins.concat('all.js'))             // Concat all JS into All
                       .pipe(gulp.dest(paths.scripts.src))              // Write all to both dest and src (for min task)
                       .pipe(gulp.dest(paths.scripts.dest))
+                      .pipe(plugins.size({title: 'scripts concat', showFiles:true}))
                       .on('error', plugins.notify.onError(function (error) {
                         return error.message;
                       }));
@@ -163,7 +168,8 @@ gulp.task('scripts:min', function() {
     .pipe(plugins.rename({suffix: '.min'}))
     .pipe(plugins.sourcemaps.write('./',{includeContent: false, sourceRoot: '../js'}))
     .pipe(plugins.plumber.stop())
-    .pipe(gulp.dest(paths.scripts.dest));
+    .pipe(gulp.dest(paths.scripts.dest))
+    .pipe(plugins.size({title: 'scripts min', showFiles:true}));
     return stream;
 });
 
