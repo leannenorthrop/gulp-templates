@@ -1,0 +1,5 @@
+{
+  "esnext": false, // true if using babel
+  "preset": "google",
+  "excludeFiles": ["excluded.js"]
+}

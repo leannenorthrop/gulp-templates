@@ -26,6 +26,7 @@ var gulp = require('gulp'),
     stylish = require('jshint-stylish-ex'),
     csslint = require('gulp-csslint'),
     gulpif = require('gulp-if'),
+    jscs = require('gulp-jscs'),
     failOnError = true;
     srcDir = "src",
     destDir = "./dist";
@@ -88,31 +89,48 @@ gulp.task('scripts:clean', function() {
 // Work around for bug in uglify which causes sourcemaps to incorrectly output sourcemap comment
 gulp.task('scripts:concat', function() {
     function getMessage(file) {
-      if (file.jshint.success) {
+      if (file.jshint.success && file.jscs.success) {
         // Don't show something if success
-        return false;
+        return "All good!";
       }
 
-      var errors = file.jshint.results.map(function (data) {
-        if (data.error) {
-          return "(" + data.error.line + ':' + data.error.character + ') ' + data.error.reason;
-        }
-      }).join("\n");
-      return (file.relative + " (" + file.jshint.results.length + " errors)\n" + errors);
+      var errors = ""
+      var count = 0
+      if (file.jshint.results) {
+        errors = file.jshint.results.map(function (data) {
+          if (data.error) {
+            return "(" + data.error.line + ':' + data.error.character + ') ' + data.error.reason;
+          }
+        }).join("\n");
+        count = file.jshint.results.length;
+      }      
+
+      if (file.jscs.errors) {
+        errors += file.jscs.errors.getErrorList().map(function (data) {
+          return "(" + data.line + ':' + data.column + ') ' + data.message;
+        }).join("\n");
+        count += file.jscs.errorCount;
+      }
+      return (file.relative + " (" + count + " errors)\n" + errors);
     }
 
     var stream = gulp.src(['!'+ srcDir + '/js/libs/**/*.*', '!'+ srcDir+'/all.js', srcDir+'/js/**/*.js'])
-    .pipe(jshint('.jshintrc'))
-    .pipe(jshint.reporter(stylish))  
-    .pipe(notify(getMessage))
-    .pipe(gulpif(failOnError, jshint.reporter('fail')))
-    .pipe(gulp.dest(destDir+'/js'))
-    .pipe(concat('all.js'))
-    .pipe(gulp.dest(srcDir+'/js'))
-    .pipe(gulp.dest(destDir+'/js'))
-    .on('error', notify.onError(function (error) {
-      return error.message;
-    }));
+                      .pipe(plumber())                    // Prevent lint/check style errors to not fail pipeline here
+                      .pipe(jshint('.jshintrc'))          // Lint   
+                      .pipe(jscs())                       // Code style check
+                      .pipe(plumber.stop())
+                      .pipe(notify(getMessage))           // Notifier
+                      .pipe(jshint.reporter(stylish))     // Report lint errors to console
+                      .pipe(jscs.reporter())              // Report style check errors to console
+                      .pipe(gulpif(failOnError, jscs.reporter('fail')))   // Fail if required on style errors
+                      .pipe(gulpif(failOnError, jshint.reporter('fail'))) // Fail if required on lint errors
+                      .pipe(gulp.dest(destDir+'/js'))     // Copy files to dest
+                      .pipe(concat('all.js'))             // Concat all JS into All
+                      .pipe(gulp.dest(srcDir+'/js'))      // Write all to both dest and src (for min task)
+                      .pipe(gulp.dest(destDir+'/js'))
+                      .on('error', notify.onError(function (error) {
+                        return error.message;
+                      }));
     return stream;
 });
 
